@@ -12,3 +12,4 @@ Interactive, production-ready web navigation system for **NED University of Engi
 - Client-side vanilla HTML5 / CSS3 / ES6 JavaScript
 - [Leaflet.js](https://leafletjs.com/) (1.9.4)
 - Deployed on Vercel
+
