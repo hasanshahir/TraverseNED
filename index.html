@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="origin" />
+  <title>NED Campus Maps — Interactive Campus Navigation &amp; Shortest-Path System</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet 1.9.4 CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="app-shell">
+    <!-- 1. FULL-VIEWPORT INTERACTIVE CAMPUS MAP -->
+    <div id="campus-map" role="application" aria-label="NED University Main Campus Map"></div>
+
+    <!-- 2. LEFT NAVIGATION DRAWER WITH CLEAN TABBED VIEWS -->
+    <aside id="sidebar-drawer" class="sidebar-drawer" aria-label="Campus Navigation Controls">
+      <div id="drawer-drag-handle" class="drawer-drag-handle" title="Toggle Drawer"></div>
+
+      <!-- Campus Identity Header -->
+      <header class="sidebar-header">
+        <div class="brand-profile">
+          <div class="brand-emblem" aria-hidden="true">NED</div>
+          <div class="brand-titles">
+            <h1>NED Campus Maps</h1>
+            <div class="brand-subtitle">
+              <span>Main Campus • University Rd, Karachi</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="toggle-graph-header-btn" class="icon-circle-btn" title="Show/Hide Walkway Network Graph">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="6" x2="8.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/></svg>
+          </button>
+          <button id="reset-campus-view-btn" class="icon-circle-btn" title="Recenter on NED Campus">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Search & Autocomplete Bar -->
+      <div class="search-container">
+        <div class="search-input-wrap">
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input
+            type="text"
+            id="global-search-input"
+            placeholder="Search dept or block # (e.g. CS, 15, Library, Food)..."
+            autocomplete="off"
+          />
+          <button id="clear-search-btn" class="clear-search-btn" title="Clear search">✕</button>
+        </div>
+        <div id="search-autocomplete" class="autocomplete-dropdown" role="listbox"></div>
+      </div>
+
+      <!-- Scrollable Tab Body -->
+      <div class="sidebar-scroll-body">
+        <!-- ==================== TAB 1: NAVIGATE & TURN-BY-TURN ==================== -->
+        <div id="tab-navigate" class="tab-pane active">
+          <!-- 4 Quick-Action Tiles -->
+          <section>
+            <div class="section-header-row">
+              <span class="section-title">Quick Actions</span>
+              <span style="font-size:10.5px;color:var(--ink-tertiary);">Shortest Path (Dijkstra/A*)</span>
+            </div>
+            <div class="quick-services-grid">
+              <button class="service-tile-btn" data-quick-action="from-main-gate">
+                <div class="service-icon-box">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+                </div>
+                <span class="service-label">Main Gate</span>
+              </button>
+              <button class="service-tile-btn" data-quick-action="nearest-cafeteria">
+                <div class="service-icon-box">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/></svg>
+                </div>
+                <span class="service-label">Nearest Cafe</span>
+              </button>
+              <button class="service-tile-btn emergency" data-quick-action="emergency-safe-zone">
+                <div class="service-icon-box">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <span class="service-label">Safe Exit</span>
+              </button>
+              <button class="service-tile-btn" data-quick-action="toggle-graph">
+                <div class="service-icon-box">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+                </div>
+                <span class="service-label">Walk Graph</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- From / To Route Selector -->
+          <section class="routing-planner-card">
+            <div class="route-inputs-stack">
+              <div class="route-field-row">
+                <span class="route-dot start"></span>
+                <span class="route-field-label">FROM</span>
+                <select id="route-from-select" class="route-select"></select>
+              </div>
+              <button id="swap-route-btn" class="swap-route-btn" title="Swap From and To">⇅</button>
+              <div class="route-field-row">
+                <span class="route-dot end"></span>
+                <span class="route-field-label">TO</span>
+                <select id="route-to-select" class="route-select"></select>
+              </div>
+            </div>
+          </section>
+
+          <!-- Compact Active Route Banner -->
+          <div class="active-route-summary-banner">
+            <div class="route-summary-left">
+              <div id="summary-route-title" class="route-summary-title">Main Gate → CSIT &amp; Maths</div>
+              <div id="summary-route-metrics" class="route-summary-sub">403 m • 6 min walk (1.3 m/s)</div>
+            </div>
+            <button id="summary-walk-btn" class="route-summary-walk-btn">▶ Walk</button>
+          </div>
+
+          <!-- Turn-by-Turn Directions Panel -->
+          <section class="turn-steps-panel">
+            <div class="section-header-row">
+              <span class="section-title">Turn-by-Turn Directions</span>
+              <span id="steps-count-badge" style="font-size:11px;font-weight:700;color:var(--route-blue);">7 steps</span>
+            </div>
+            <div id="turn-steps-list" class="turn-steps-list"></div>
+          </section>
+        </div>
+
+        <!-- ==================== TAB 2: SELECTED BLOCK DETAILS ==================== -->
+        <div id="tab-details" class="tab-pane">
+          <section class="featured-dispatch-card">
+            <div id="dispatch-banner" class="dispatch-banner">
+              <div>
+                <div id="dispatch-block-code" class="dispatch-code">#BLOCK-5</div>
+                <div class="dispatch-status-label">Selected Campus Landmark</div>
+                <div class="dispatch-status-row">
+                  <span>🚶</span>
+                  <span id="dispatch-status-text">CSIT &amp; Maths • 403 m</span>
+                </div>
+              </div>
+              <svg width="56" height="56" viewBox="0 0 64 64" fill="none">
+                <polygon points="32,6 58,19 32,32 6,19" fill="#84CC16" />
+                <polygon points="6,19 32,32 32,58 6,45" fill="#65A30D" />
+                <polygon points="32,32 58,19 58,45 32,58" fill="#4D7C0F" />
+                <polygon points="24,12 38,19 32,22 18,15" fill="#ECFCCB" opacity="0.85" />
+              </svg>
+            </div>
+
+            <div class="dispatch-meta-table">
+              <div class="meta-row">
+                <span class="meta-key">Department</span>
+                <span id="meta-dept-name" class="meta-val">CSIT &amp; Maths Dept.</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">From Origin</span>
+                <span id="meta-origin-name" class="meta-val">Main Gate (G1)</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Walking Distance</span>
+                <span id="meta-dist-time" class="meta-val">403 m (6 min)</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Category</span>
+                <span id="meta-category" class="meta-val">Academic • 3 Floors</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-key">Hours</span>
+                <span id="meta-hours" class="meta-val">08:30 AM – 05:00 PM</span>
+              </div>
+            </div>
+
+            <div id="dispatch-description" class="dispatch-note-box">
+              "Department of Computer Science &amp; Information Technology and Department of Mathematics &amp; Basic Sciences."
+            </div>
+
+            <div class="card-footer-actions">
+              <button id="card-focus-dest-btn" class="dark-pill-cta">Zoom to Building on Map</button>
+              <button id="card-share-route-btn" class="round-action-icon" title="Copy Route Summary">⎘</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- ==================== TAB 3: ALL 30 BLOCKS & DIRECTORY ==================== -->
+        <div id="tab-directory" class="tab-pane">
+          <div class="section-header-row">
+            <span class="section-title">Campus Directory (Blocks 1–30 &amp; Landmarks)</span>
+          </div>
+          <div id="category-chips-bar" class="category-chips-bar"></div>
+          <div id="directory-cards-list" class="directory-cards-list"></div>
+        </div>
+      </div>
+
+      <!-- Dedicated Dock Footer (Never Overlaps Content!) -->
+      <div class="sidebar-dock-footer">
+        <nav class="sidebar-bottom-dock" aria-label="Navigation Tabs">
+          <button class="dock-nav-btn active" data-tab-target="tab-navigate">
+            <span>↱</span>
+            <span>Route</span>
+          </button>
+          <button class="dock-nav-btn" data-tab-target="tab-details">
+            <span>🏢</span>
+            <span>Block Info</span>
+          </button>
+          <button class="dock-nav-btn" data-tab-target="tab-directory">
+            <span>⊞</span>
+            <span>All 30 Blocks</span>
+          </button>
+          <button class="dock-nav-btn" data-tab-target="toggle-masterplan">
+            <span>🗺</span>
+            <span>Plan</span>
+          </button>
+        </nav>
+      </div>
+    </aside>
+
+    <!-- 3. FLOATING MAP HUDS -->
+    <!-- Top-Left Next Turn Banner -->
+    <div class="map-top-hud">
+      <div class="floating-turn-pill">
+        <div id="hud-turn-icon" class="hud-turn-icon">↰</div>
+        <div>
+          <div id="hud-turn-dist" class="hud-turn-dist">150 m</div>
+          <div id="hud-turn-street" class="hud-turn-street">South Entrance Boulevard</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top-Right Layer Switcher & Color Legend -->
+    <div class="map-top-right-controls">
+      <div class="layer-pill-bar" role="group" aria-label="Map Layer Toggle">
+        <button class="layer-toggle-btn active" data-layer="street">Campus Map</button>
+        <button class="layer-toggle-btn" data-layer="satellite">Satellite</button>
+        <button class="layer-toggle-btn" data-layer="masterplan">Master Plan Overlay</button>
+      </div>
+
+      <div id="overlay-opacity-card" class="overlay-opacity-card">
+        <label for="masterplan-opacity-slider">Master Plan Opacity</label>
+        <input type="range" id="masterplan-opacity-slider" min="0.15" max="1" step="0.05" value="0.88" />
+      </div>
+
+      <!-- Color Legend matching NED Master Plan -->
+      <div class="campus-legend-bar">
+        <span class="legend-item"><span class="legend-swatch" style="background:#10b981;"></span>Academic</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#0ea5e9;"></span>Labs</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#f59e0b;"></span>Admin</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#f97316;"></span>Services</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#8b5cf6;"></span>Library</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#06b6d4;"></span>Hostels</span>
+      </div>
+    </div>
+
+    <!-- Bottom-Center ETA & Walker Simulation Card -->
+    <div class="map-bottom-eta-card">
+      <div class="eta-metrics-row">
+        <span id="eta-card-distance">403 m</span>
+        <span id="eta-card-duration">6 min</span>
+        <span id="eta-card-arrival">11:05 PM</span>
+      </div>
+      <div class="eta-progress-wrap">
+        <button id="walk-sim-toggle-btn" class="walk-sim-btn" title="Simulate Walk">▶</button>
+        <div id="eta-progress-track" class="eta-progress-track" title="Click to scrub along route">
+          <div id="eta-progress-fill" class="eta-progress-fill"></div>
+          <div id="eta-progress-arrow" class="eta-progress-arrow">➤</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom-Right Zoom & Recenter Controls -->
+    <div class="map-zoom-cluster">
+      <button id="map-zoom-in" class="map-fab-btn" title="Zoom In">+</button>
+      <button id="map-zoom-out" class="map-fab-btn" title="Zoom Out">−</button>
+      <button id="map-recenter" class="map-fab-btn" title="Recenter Campus">◎</button>
+    </div>
+  </main>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script src="data/campus_nodes.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
